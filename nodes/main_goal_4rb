@@ -615,8 +615,8 @@ def clear_all_values():
 if __name__ == '__main__':
     rospy.init_node('main_goal_4rb')
 
-    training = False # 学習の有無
-    evaluation = False # テストの有無
+    training = True # 学習の有無
+    evaluation = True # テストの有無
     demonstration = False # デモンストレーションの有無
 
     # 実験開始時間の取得
