@@ -348,7 +348,6 @@ def main(trial):
     select = Select(trial, trial_num)
     
     print('params = ' + str(study.trials[-1].params))
-    
 
     params = {
         'network': select.network, 
@@ -455,7 +454,6 @@ def main(trial):
 if __name__ == '__main__':
     
     rospy.init_node('optuna_goal_4rb')
-    global Target
 
     optuna_db_name = datetime.now().strftime('%m_%d_99') # データベースの名前
     optuna_db_path = 'sqlite:///' + os.path.dirname(os.path.realpath(__file__)) + '/score/optuna.db' # データベースの保存場所
