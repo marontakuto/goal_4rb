@@ -186,7 +186,7 @@ class Main():
             self.r_just = trial.suggest_float("r_just", 0.1, 0.7, step=0.01)
             self.r_near = trial.suggest_float("r_near", 1, 7, step=0.1)
             self.r_goal = trial.suggest_float("r_goal", 50, 2000, step=10)
-            self.r_cost = trial.suggest_float("r_cost", 1, 50, step=10)
+            self.r_cost = trial.suggest_float("r_cost", 1, 50, step=1)
         else:
             self.r_collision = None
             self.r_just = None
@@ -289,25 +289,25 @@ class Visual: # Optunaの可視化
             if self.html:
                 fig.write_html(f_score_file + dtstr + '_' + str(len(study.trials)) + 'trial_history.html')
 
-            fig = optuna.visualization.plot_slice(study) # パラメータのどの値を重点的に探索しているかを見る
+            fig = optuna.visualization.plot_slice(study) # パラメータのどの値を重点的に探索しているか
             if self.png:
                 fig.write_image(f_score_file + dtstr + '_' + str(len(study.trials)) + 'trial_slice.png')
             if self.html:
                 fig.write_html(f_score_file + dtstr + '_' + str(len(study.trials)) + 'trial_slice.html')
 
-            fig = optuna.visualization.plot_param_importances(study) # 各パラメータがscore向上にどれだけ効いたか見る
+            fig = optuna.visualization.plot_param_importances(study) # 各パラメータがscore向上にどれだけ効いたか
             if self.png:
                 fig.write_image(f_score_file + dtstr + '_' + str(len(study.trials)) + 'trial_importances.png')
             if self.html:
                 fig.write_html(f_score_file + dtstr + '_' + str(len(study.trials)) + 'trial_importances.html')
 
-            # fig = optuna.visualization.plot_parallel_coordinate(study) # scoreが高いパラメータの組み合わせを見る
+            # fig = optuna.visualization.plot_parallel_coordinate(study) # scoreが高いパラメータの組み合わせ
             # if self.png:
             #     fig.write_image(f_score_file + dtstr + '_' + str(len(study.trials)) + 'trial_coordinate.png')
             # if self.html:
             #     fig.write_html(f_score_file + dtstr + '_' + str(len(study.trials)) + 'trial_coordinate.html')
 
-            # fig = optuna.visualization.plot_contour(study) # 各2変数の組み合わせでそれぞれの値がどれだけ効くか見る
+            # fig = optuna.visualization.plot_contour(study) # 各2変数の組み合わせでそれぞれの値がどれだけ効くか
             # if self.png:
             #     fig.write_image(f_score_file + dtstr + '_' + str(len(study.trials)) + 'trial_contour.png')
             # if self.html:
@@ -388,25 +388,22 @@ def main(trial):
                 if (now_time - start_time) > 15: # 情報を受け取ってから時間経過で進む
                     break
             pass
-    
+    print(score_list)
     if len(score_list) == 4: # 通常時([agent.robot_n, score_1st_last, score_2nd_last, score_3rd_last])
-        robot_list = [score_list[0][0], score_list[1][0], score_list[2][0]]
-        score_1st_last_list = [score_list[0][1], score_list[1][1], score_list[2][1]]
-        score_2nd_last_list = [score_list[0][2], score_list[1][2], score_list[2][2]]
-        score_3rd_last_list = [score_list[0][3], score_list[1][3], score_list[2][3]]
-        score_4th_last_list = [score_list[0][4], score_list[1][4], score_list[2][4]]
-    else: # 3台分の評価値を得られなかったときの処理
+        robot_list = [score_list[0][0], score_list[1][0], score_list[2][0], score_list[3][0]]
+        score_1st_last_list = [score_list[0][1], score_list[1][1], score_list[2][1], score_list[3][1]]
+        score_2nd_last_list = [score_list[0][2], score_list[1][2], score_list[2][2], score_list[3][2]]
+        score_3rd_last_list = [score_list[0][3], score_list[1][3], score_list[2][3], score_list[3][3]]
+    else: # 4台分の評価値を得られなかったときの処理
         robot_list = [0, 1, 2, 3]
         score_1st_last_list = [20, 20, 20, 20]
         score_2nd_last_list = [20, 20, 20, 20]
         score_3rd_last_list = [20, 20, 20, 20]
-        score_4th_last_list = [20, 20, 20, 20]
     
     score_1st_last_ave = round(sum(score_1st_last_list) / len(score_1st_last_list), 2)
     score_2nd_last_ave = round(sum(score_2nd_last_list) / len(score_2nd_last_list), 2)
     score_3rd_last_ave = round(sum(score_3rd_last_list) / len(score_3rd_last_list), 2)
-    score_4th_last_ave = round(sum(score_4th_last_list) / len(score_4th_last_list), 2)
-    score_ave_list = [score_1st_last_ave, score_2nd_last_ave, score_3rd_last_ave, score_4th_last_ave]
+    score_ave_list = [score_1st_last_ave, score_2nd_last_ave, score_3rd_last_ave]
 
     # Optuna評価値とするスコアを決定
     max_index = score_ave_list.index(max(score_ave_list))
@@ -416,8 +413,6 @@ def main(trial):
         optuna_select = "score_2nd_last"
     elif max_index == 2:
         optuna_select = "score_3rd_last"
-    elif max_index == 3:
-        optuna_select = "score_4th_last"
     score_list_ave = score_ave_list[max_index]
     
     print('score_list = ' + str(score_list_ave) + ', select = ' + str(optuna_select))
@@ -436,7 +431,6 @@ def main(trial):
         "score_1st_last: " + str([round(num, 2) for num in score_1st_last_list]) + " average: " + str(score_1st_last_ave) + "\n", 
         "score_2nd_last: " + str([round(num, 2) for num in score_2nd_last_list]) + " average: " + str(score_2nd_last_ave) + "\n", 
         "score_3rd_last: " + str([round(num, 2) for num in score_3rd_last_list]) + " average: " + str(score_3rd_last_ave) + "\n", 
-        "score_4th_last: " + str([round(num, 2) for num in score_4th_last_list]) + " average: " + str(score_4th_last_ave) + "\n", 
         "select: " + optuna_select + " score: " + str(score_list_ave) + "\n", 
         "best_trial: " + str(o) + "\n\n"
     ]
