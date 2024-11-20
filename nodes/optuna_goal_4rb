@@ -32,10 +32,10 @@ from optuna.samplers import TPESampler
 from optuna.trial import TrialState
 
 
-class Main():
-    def __init__(self, trial):
+class Select():
+    def __init__(self, trial, trial_num):
 
-        print('\ntrial ' + str(len(study.trials) - 1) + ' start')
+        print('\ntrial ' + str(trial_num) + ' start')
 
         self.network='DCNN' # CNN or DCNN or MLP
 
@@ -95,7 +95,7 @@ class Main():
             if Target=='both' or Target=='network':
                 self.conv_num = None
                 # 中間層数とユニット数の選択
-                self.mid_layer_num = trial.suggest_categorical('mid_layer_num', [1,2,3])
+                self.mid_layer_num = trial.suggest_categorical('mid_layer_num', [1, 2, 3])
                 if self.mid_layer_num == 1:
                     self.mid_units1 = int(trial.suggest_float("mid_units1", 50, 850, step=100))
                     self.mid_units2 = None
@@ -274,8 +274,8 @@ class Visual: # Optunaの可視化
         self.png = True # 画像として保存するか
         self.html = False # HTMLとして保存するか
     
-    def v1(self, trial): # 単一目的
-        if len(study.trials) % self.to_trial == 0 and len(study.trials) >= self.initial_trial:
+    def v1(self, trial_num): # 単一目的
+        if trial_num + 1 % self.to_trial == 0 and trial_num + 1 >= self.initial_trial:
             print ('save graph')
 
             dt = datetime.now()
@@ -285,36 +285,36 @@ class Visual: # Optunaの可視化
             # グラフの作成
             fig = optuna.visualization.plot_optimization_history(study) # 全トライアルのスコアとベストスコア
             if self.png:
-                fig.write_image(f_score_file + dtstr + '_' + str(len(study.trials)) + 'trial_history.png')
+                fig.write_image(f_score_file + dtstr + '_' + str(trial_num) + 'trial_history.png')
             if self.html:
-                fig.write_html(f_score_file + dtstr + '_' + str(len(study.trials)) + 'trial_history.html')
+                fig.write_html(f_score_file + dtstr + '_' + str(trial_num) + 'trial_history.html')
 
             fig = optuna.visualization.plot_slice(study) # パラメータのどの値を重点的に探索しているか
             if self.png:
-                fig.write_image(f_score_file + dtstr + '_' + str(len(study.trials)) + 'trial_slice.png')
+                fig.write_image(f_score_file + dtstr + '_' + str(trial_num) + 'trial_slice.png')
             if self.html:
-                fig.write_html(f_score_file + dtstr + '_' + str(len(study.trials)) + 'trial_slice.html')
+                fig.write_html(f_score_file + dtstr + '_' + str(trial_num) + 'trial_slice.html')
 
             fig = optuna.visualization.plot_param_importances(study) # 各パラメータがscore向上にどれだけ効いたか
             if self.png:
-                fig.write_image(f_score_file + dtstr + '_' + str(len(study.trials)) + 'trial_importances.png')
+                fig.write_image(f_score_file + dtstr + '_' + str(trial_num) + 'trial_importances.png')
             if self.html:
-                fig.write_html(f_score_file + dtstr + '_' + str(len(study.trials)) + 'trial_importances.html')
+                fig.write_html(f_score_file + dtstr + '_' + str(trial_num) + 'trial_importances.html')
 
             # fig = optuna.visualization.plot_parallel_coordinate(study) # scoreが高いパラメータの組み合わせ
             # if self.png:
-            #     fig.write_image(f_score_file + dtstr + '_' + str(len(study.trials)) + 'trial_coordinate.png')
+            #     fig.write_image(f_score_file + dtstr + '_' + str(trial_num) + 'trial_coordinate.png')
             # if self.html:
-            #     fig.write_html(f_score_file + dtstr + '_' + str(len(study.trials)) + 'trial_coordinate.html')
+            #     fig.write_html(f_score_file + dtstr + '_' + str(trial_num) + 'trial_coordinate.html')
 
             # fig = optuna.visualization.plot_contour(study) # 各2変数の組み合わせでそれぞれの値がどれだけ効くか
             # if self.png:
-            #     fig.write_image(f_score_file + dtstr + '_' + str(len(study.trials)) + 'trial_contour.png')
+            #     fig.write_image(f_score_file + dtstr + '_' + str(trial_num) + 'trial_contour.png')
             # if self.html:
-            #     fig.write_html(f_score_file + dtstr + '_' + str(len(study.trials)) + 'trial_contour.html')
+            #     fig.write_html(f_score_file + dtstr + '_' + str(trial_num) + 'trial_contour.html')
     
-    def v2(self, trial): # 2目的
-        if len(study.trials) % self.to_trial == 0 and len(study.trials) >= self.initial_trial:
+    def v2(self, trial_num): # 2目的
+        if trial_num + 1 % self.to_trial == 0 and trial_num + 1 >= self.initial_trial:
             print ('save graph')
 
             dt = datetime.now()
@@ -324,47 +324,50 @@ class Visual: # Optunaの可視化
             # グラフの作成
             fig = optuna.visualization.plot_pareto_front(study,include_dominated_trials=True)
             if self.png:
-                fig.write_image(f_score_file + dtstr+'_'+str(len(study.trials))+'trial_pareto_front.png')
+                fig.write_image(f_score_file + dtstr+'_'+str(trial_num)+'trial_pareto_front.png')
             if self.html:
-                fig.write_html(f_score_file + dtstr + '_' + str(len(study.trials)) + 'trial_pareto_front.html')
+                fig.write_html(f_score_file + dtstr + '_' + str(trial_num) + 'trial_pareto_front.html')
 
             fig = optuna.visualization.plot_slice(study,target=lambda t: t.values[0])
             if self.png:
-                fig.write_image(f_score_file + dtstr+'_'+str(len(study.trials))+'trial_plot_slice1.png')
+                fig.write_image(f_score_file + dtstr+'_'+str(trial_num)+'trial_plot_slice1.png')
             if self.html:
-                fig.write_html(f_score_file + dtstr + '_' + str(len(study.trials)) + 'trial_plot_slice1.html')
+                fig.write_html(f_score_file + dtstr + '_' + str(trial_num) + 'trial_plot_slice1.html')
 
             fig = optuna.visualization.plot_slice(study,target=lambda t: t.values[1])
             if self.png:
-                fig.write_image(f_score_file + dtstr+'_'+str(len(study.trials))+'trial_plot_slice2.png')
+                fig.write_image(f_score_file + dtstr+'_'+str(trial_num)+'trial_plot_slice2.png')
             if self.html:
-                fig.write_html(f_score_file + dtstr + '_' + str(len(study.trials)) + 'trial_plot_slice2.html')
+                fig.write_html(f_score_file + dtstr + '_' + str(trial_num) + 'trial_plot_slice2.html')
 
 
 def main(trial):
 
-    a = Main(trial)
+    trial_num = len(study.trials) - 1
+
+    select = Select(trial, trial_num)
     
     print('params = ' + str(study.trials[-1].params))
+    
 
     params = {
-        'network': a.network, 
-        'conv_num': a.conv_num, 
-        'mid_layer_num': a.mid_layer_num, 
-        'mid_units1': a.mid_units1, 
-        'mid_units2': a.mid_units2 if a.mid_units2 is not None else -1, 
-        'mid_units3': a.mid_units3 if a.mid_units3 is not None else -1, 
-        'cnv_act': a.cnv_act if a.cnv_act is not None else -1, 
-        'ful_act': a.ful_act if a.ful_act is not None else -1, 
-        'optimizer': a.optimizer, 
-        'batch_size': a.batch_size, 
-        'r_collision': a.r_collision if a.r_collision is not None else -1, 
-        'r_just': a.r_just if a.r_just is not None else -1, 
-        'r_near': a.r_near if a.r_near is not None else -1, 
-        'r_goal': a.r_goal if a.r_goal is not None else -1, 
-        'r_cost': a.r_cost if a.r_cost is not None else -1, 
-        'Target': a.Target, 
-        'trials': len(study.trials)-1
+        'network': select.network, 
+        'conv_num': select.conv_num, 
+        'mid_layer_num': select.mid_layer_num, 
+        'mid_units1': select.mid_units1, 
+        'mid_units2': select.mid_units2 if select.mid_units2 is not None else -1, 
+        'mid_units3': select.mid_units3 if select.mid_units3 is not None else -1, 
+        'cnv_act': select.cnv_act if select.cnv_act is not None else -1, 
+        'ful_act': select.ful_act if select.ful_act is not None else -1, 
+        'optimizer': select.optimizer, 
+        'batch_size': select.batch_size, 
+        'r_collision': select.r_collision if select.r_collision is not None else -1, 
+        'r_just': select.r_just if select.r_just is not None else -1, 
+        'r_near': select.r_near if select.r_near is not None else -1, 
+        'r_goal': select.r_goal if select.r_goal is not None else -1, 
+        'r_cost': select.r_cost if select.r_cost is not None else -1, 
+        'Target': select.Target, 
+        'trials': trial_num
     }
 
     pub_baton = rospy.Publisher('baton', Float32MultiArray, queue_size=5)
@@ -418,14 +421,14 @@ def main(trial):
     print('score_list = ' + str(score_list_ave) + ', select = ' + str(optuna_select))
 
     # Optunaの記録
-    if len(study.trials) - 1 == 0:
+    if trial_num == 0:
         o = 0
     elif study.best_trial.value <= score_list_ave:
-        o = len(study.trials) - 1
+        o = trial_num
     else:
         o = study.best_trial.number
     text = [
-        "TRIAL: " + str(len(study.trials) - 1) + "\n", 
+        "TRIAL: " + str(trial_num) + "\n", 
         "parameter: " + str(study.trials[-1].params) + "\n", 
         "robot_list: " + str(robot_list) + "\n", 
         "score_1st_last: " + str([round(num, 2) for num in score_1st_last_list]) + " average: " + str(score_1st_last_ave) + "\n", 
@@ -439,11 +442,11 @@ def main(trial):
 
     # グラフの作成
     visual = Visual()
-    visual.v1(trial)
+    visual.v1(trial_num)
     
     # パラメータファイルの削除(トライアル数が多い場合は必須)
     dirPath = os.path.dirname(os.path.realpath(__file__))
-    dirPath = dirPath.replace('/nodes', '/save_model/TRIAL' + str(len(study.trials) - 1) + '/')
+    dirPath = dirPath.replace('/nodes', '/save_model/TRIAL' + str(trial_num) + '/')
     shutil.rmtree(dirPath)
 
     return round(score_list_ave, 2)
