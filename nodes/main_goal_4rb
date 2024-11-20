@@ -49,7 +49,7 @@ class ReinforceAgent():
         self.exploration = 'd_egreedy' # d_egreedy(decay_epsilon_greedy) or c_egreedy(constant_epsilon_greedy)
         self.lidar_num = 36 # DQNに入力するlidarの方向数
         self.action_size = 4 # 行動の種類数
-        self.episode = 2 # 40
+        self.episode = 45 # 40
         self.eval_episode = 2 # 4
         self.episode_step = 500 # 500
         self.test_step = 500 # 500
@@ -65,15 +65,15 @@ class ReinforceAgent():
         self.teleport = True # 衝突時は空いたスペースに再配置する
         self.termination_e = 999 # ロボットがフィールド外の左側に存在したら強制終了を始めるエピソード(最初のエピソードから行っていると無駄な計算量が出る)
         self.trial_restart = 999 # Optunaをロードして始めるトライアル
-        self.all_episode_test = True # すべてのエピソードをテスト
+        self.all_episode_test = False # すべてのエピソードをテスト
         self.synchro = True # エピソードごとの同期の有無
         if self.all_episode_test: # すべてのエピソードをテストする場合は必ず同期する
             self.synchro = True
         ########################
 
         ### オプション有無の実験 ###
-        if trials >= 5:
-            self.teleport = False
+        # if trials >= 5:
+        #     self.teleport = False
         ############################
 
         #######################################################################################
