@@ -311,69 +311,51 @@ class Env():
         state_list, _, _, _, _, _ = self.getState()
         return np.array(state_list)
     
-    def restart(self):
+    def restart(self): # 障害物から離れるように動いて安全を確保
 
         self.stop()
         vel_cmd = Twist()
+        front_side = list(range(0, self.lidar_num * 1 // 4 + 1)) + list(range(self.lidar_num * 3 // 4, self.lidar_num))
+        left_side = list(range(0, self.lidar_num * 1 // 2 + 1))
 
         data_range = self.get_lidar(restart=True, retake=True)
 
         while True:
-            while True:
-                
-                vel_cmd.linear.x = 0 # 直進方向[m/s]
-                vel_cmd.angular.z = pi / 4 # 回転方向[rad/s]
-                self.pub_cmd_vel.publish(vel_cmd) # 実行
-                data_range = self.get_lidar(restart=True, retake=True)
-                
-                if data_range.index(min(data_range)) == 0: # 正面
-                    wall = 'front'
-                    break
-                if data_range.index(min(data_range)) == round(len(data_range)/2): # 背面
-                    wall = 'back'
-                    break
-
-                self.stop()
-
-            if wall =='front':
-                while data_range[0] < self.range_margin + 0.10: # 衝突値＋10cm
-                    vel_cmd.linear.x = -0.10 # 直進方向[m/s]
-                    vel_cmd.angular.z = 0  # 回転方向[rad/s]
-                    self.pub_cmd_vel.publish(vel_cmd) # 実行
-                    data_range = self.get_lidar(restart=True, retake=True)
-
-            elif wall =='back':
-                while data_range[round(len(data_range)/2)] < self.range_margin + 0.10: # 衝突値＋10cm
-                    vel_cmd.linear.x = 0.10 # 直進方向[m/s]
-                    vel_cmd.angular.z = 0  # 回転方向[rad/s]
-                    self.pub_cmd_vel.publish(vel_cmd) # 実行
-                    data_range = self.get_lidar(restart=True,retake=True)
+            if data_range.index(min(data_range)) in left_side: # 左側に障害物がある時
+                vel_cmd.angular.z = -pi / 4 # 右回転[rad/s]
+            else:
+                vel_cmd.angular.z = pi / 4 # 左回転[rad/s]
             
-            self.stop()
+            if data_range.index(min(data_range)) in front_side: # 前方に障害物がある時
+                vel_cmd.linear.x = -0.15 # 後退[m/s]
+                vel_cmd.angular.z = vel_cmd.angular.z * -1 # 回転方向反転[rad/s]
+            else:
+                vel_cmd.linear.x = 0.15 # 前進[m/s]
             
-            side_list = [round(len(data_range) / 4), round(len(data_range) * 3 / 4)] # 側面
-            num = np.random.randint(0, 2)
-            while True:
-                vel_cmd.linear.x = 0 # 直進方向[m/s]
-                if num == 0:
-                    vel_cmd.angular.z = pi / 4 # 回転方向[rad/s]
-                else:
-                    vel_cmd.angular.z = -pi / 4 # 回転方向[rad/s]
-                self.pub_cmd_vel.publish(vel_cmd) # 実行
-                data_range = self.get_lidar(restart=True, retake=True)
-                if data_range.index(min(data_range)) in side_list: # 側面のLiDAR値が最小である時
-                    break
-            
-            self.stop()
+            self.pub_cmd_vel.publish(vel_cmd) # 実行
 
             data_range = self.get_lidar(restart=True, retake=True)
-            if min(data_range) > self.range_margin + 0.05: # LiDAR値が衝突判定の距離より余裕がある時
+
+            if min(data_range) > self.range_margin + 0.1: # LiDAR値が衝突判定の距離より余裕がある時
+                self.stop()
                 break
     
     def set_robot(self, num): # 指定位置にロボットを配置
 
         self.stop()
+
+        # テスト時の目標ゴールの再設定
+        if 0 <= num <= 100:
+            if self.robot_n == 0:
+                self.goal_color = 'purple'
+            elif self.robot_n == 1:
+                self.goal_color = 'green'
+            elif self.robot_n == 2:
+                self.goal_color = 'yellow'
+            elif self.robot_n == 3:
+                self.goal_color = 'red'
         
+        # 配置場所の定義
         a = [0.55, 0.9, 0.02, 3.14] # 上
         b = [0.55, 0.35, 0.02, 2.355] # 右上
         c = [0.0, 0.35, 0.02, 1.57] # 右
@@ -393,6 +375,38 @@ class Env():
             elif self.robot_n == 3:
                 XYZyaw = d
         
+        # 以下テスト用
+        if num in [1, 2]:
+            if self.robot_n == 0:
+                XYZyaw = b
+            elif self.robot_n == 1:
+                XYZyaw = h
+            elif self.robot_n == 2:
+                XYZyaw = f
+            elif self.robot_n == 3:
+                XYZyaw = d
+        
+        elif num in [3, 4]:
+            if self.robot_n == 0:
+                XYZyaw = a
+            elif self.robot_n == 1:
+                XYZyaw = g
+            elif self.robot_n == 2:
+                XYZyaw = e
+            elif self.robot_n == 3:
+                XYZyaw = c
+        
+        elif num in [5, 6]:
+            if self.robot_n == 0:
+                XYZyaw = c
+            elif self.robot_n == 1:
+                XYZyaw = a
+            elif self.robot_n == 2:
+                XYZyaw = g
+            elif self.robot_n == 3:
+                XYZyaw = e
+        
+        # フィールド外
         elif num == 102: # フィールド外の右側
             if self.robot_n == 0:
                 XYZyaw = [-0.55, -0.3, 0.02, 0] # 下
@@ -450,52 +464,9 @@ class Env():
             XYZyaw = g
         elif num == 1008:
             XYZyaw = h
-
-        # テスト時の目標ゴールの設定
-        if 0 <= num <= 100:
-            if self.robot_n == 0:
-                self.goal_color = 'purple'
-            elif self.robot_n == 1:
-                self.goal_color = 'green'
-            elif self.robot_n == 2:
-                self.goal_color = 'yellow'
-            elif self.robot_n == 3:
-                self.goal_color = 'red'
-
-        # 以下テスト用
-        if num in [1, 2]:
-            if self.robot_n == 0:
-                XYZyaw = b
-            elif self.robot_n == 1:
-                XYZyaw = h
-            elif self.robot_n == 2:
-                XYZyaw = f
-            elif self.robot_n == 3:
-                XYZyaw = d
-        
-        elif num in [3, 4]:
-            if self.robot_n == 0:
-                XYZyaw = a
-            elif self.robot_n == 1:
-                XYZyaw = g
-            elif self.robot_n == 2:
-                XYZyaw = e
-            elif self.robot_n == 3:
-                XYZyaw = c
-        
-        elif num in [5, 6]:
-            if self.robot_n == 0:
-                XYZyaw = c
-            elif self.robot_n == 1:
-                XYZyaw = a
-            elif self.robot_n == 2:
-                XYZyaw = g
-            elif self.robot_n == 3:
-                XYZyaw = e
         
         state_msg = ModelState()
         state_msg.model_name = 'tb3_{}'.format(self.robot_n)
-
         state_msg.pose.position.x = XYZyaw[0]
         state_msg.pose.position.y = XYZyaw[1]
         state_msg.pose.position.z = XYZyaw[2]
@@ -645,7 +616,7 @@ class Env():
         # テレポート
         self.set_robot(teleport_area + 1000)
 
-    def area_judge(self, terms, area):
+    def area_judge(self, terms, area): # ロボットのエリア内外判定
         exist = False
         judge_list = []
         rb0, rb1, rb2, rb3 = self.robot_coordinate() # ロボットの座標を取得
