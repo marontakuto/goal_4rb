@@ -7,21 +7,16 @@ import random
 import math
 import time
 from math import pi
-from geometry_msgs.msg import Twist, Point, Pose
+from geometry_msgs.msg import Twist
 from sensor_msgs.msg import LaserScan
 from rosgraph_msgs.msg import Clock
-from std_msgs.msg import String, Float32, Float32MultiArray, UInt16, Int32
-from nav_msgs.msg import Odometry
 from std_srvs.srv import Empty
 from collections import deque
 from gazebo_msgs.msg import ModelState, ModelStates
 from gazebo_msgs.srv import SetModelState
 from tf.transformations import *
-import itertools
-
 import cv2
 from sensor_msgs.msg import Image, CompressedImage
-import sys
 import ros_numpy
 
 class Env():
@@ -72,7 +67,7 @@ class Env():
         elif self.robot_n == 3:
             self.goal_color = 'red'
 
-    def pass_img(self,img): # 画像正常取得用callback
+    def pass_img(self, img): # 画像正常取得用callback
         pass
 
     def get_clock(self): # シミュレーションでの倍速に対して当倍速として時間を取得する
@@ -80,7 +75,7 @@ class Env():
             data = None
             while data is None:
                 try:
-                    data = rospy.wait_for_message('clock', Clock, timeout=10)
+                    data = rospy.wait_for_message('/clock', Clock, timeout=10)
                 except:
                     time.sleep(2)
                     print('Please check "mode"!')
@@ -727,7 +722,7 @@ class Env():
 
         ### ユーザー設定パラメータ ###
         threshold = 0.18 # 何mでセンサーが反応したら動きを変えるか決める数値
-        probabilistic = True # True: リカバリー方策を確率的に利用する, False: リカバリー方策を必ず利用する
+        probabilistic = False # True: リカバリー方策を確率的に利用する, False: リカバリー方策を必ず利用する
         initial_probability = 1.0 # 最初の確率
         finish_episode = 15 # 方策を適応する最後のエピソード
         mode_change_episode = 11 # 行動変更のトリガーをLiDAR値からQ値に変えるエピソード

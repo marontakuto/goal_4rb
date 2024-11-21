@@ -19,22 +19,18 @@ from optuna.trial import TrialState
 import sqlite3
 
 
-class Select:
+class Select: # Optunaのパラメータを管理するデータベースを操作
     def __init__(self):
-        self.db_path = os.path.dirname(os.path.realpath(__file__)) + "/score/parameters.db"
+        self.db_path = os.path.dirname(os.path.realpath(__file__)) + "/score/to_main.db"
         directory = os.path.dirname(self.db_path)
-
-        # ディレクトリが存在しない場合は作成
-        if not os.path.exists(directory):
+        if not os.path.exists(directory): # ディレクトリが存在しない場合は作成
             os.makedirs(directory)
 
-        # データベース接続の初期化
+        # データベース接続の初期化とテーブル作成
         self.conn = sqlite3.connect(self.db_path)
         self.cursor = self.conn.cursor()
-
-        # テーブル作成
         self.cursor.execute('''
-        CREATE TABLE IF NOT EXISTS parameters (
+        CREATE TABLE IF NOT EXISTS to_main (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT UNIQUE NOT NULL,
             value TEXT,
@@ -43,13 +39,10 @@ class Select:
         ''')
         self.conn.commit()
 
-        # 既存の値をクリア
-        if os.path.exists(self.db_path):
+        if os.path.exists(self.db_path): # 既存の値をクリア
             self.clear_all_values()
 
-    def choice_param(self, trial, trials, parameters, Target, trial_size):
-
-        Target = Target
+    def choice_param(self, trial, trials, parameters, Target, trial_size): # Optunaのパラメータ選択
 
         network='DCNN' # CNN or DCNN or MLP
 
@@ -177,7 +170,7 @@ class Select:
     def initialize_parameters(self, param_names):
         for param_name in param_names:
             self.cursor.execute('''
-            INSERT OR IGNORE INTO parameters (name)
+            INSERT OR IGNORE INTO to_main (name)
             VALUES (?)
             ''', (param_name,))
         self.conn.commit()
@@ -185,7 +178,7 @@ class Select:
     # 値の設定
     def set_parameter_value(self, name, value):
         self.cursor.execute('''
-        UPDATE parameters
+        UPDATE to_main
         SET value = ?, is_set = 1
         WHERE name = ?
         ''', (value, name))
@@ -194,14 +187,14 @@ class Select:
     # すべての値を削除
     def clear_all_values(self):
         self.cursor.execute('''
-        UPDATE parameters
+        UPDATE to_main
         SET value = NULL, is_set = 0
         ''')
         self.conn.commit()
 
     # 特定の名前の値をそのまま取得
     def get_value_by_name(self, name):
-        self.cursor.execute('SELECT value FROM parameters WHERE name = ?', (name,))
+        self.cursor.execute('SELECT value FROM to_main WHERE name = ?', (name,))
         result = self.cursor.fetchone()
         if result and result[0] is not None:
             return result[0]  # 値をそのまま返す
@@ -341,10 +334,10 @@ class Visual: # Optunaの可視化
                 fig.write_html(f_score_file + dtstr + '_' + str(trials) + 'trial_plot_slice2.html')
 
 
-class SQL:
+class SQL: # 各ノードでのパラメータの評価を参照するためのデータベースを操作
     def __init__(self):
-        self.db_path = os.path.dirname(os.path.realpath(__file__)) + "/score/to_optuna.db"
         # データベースとテーブルを準備
+        self.db_path = os.path.dirname(os.path.realpath(__file__)) + "/score/to_optuna.db"
         directory = os.path.dirname(self.db_path)
         if os.path.exists(self.db_path):
             self.clear_data()
@@ -353,7 +346,7 @@ class SQL:
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
         cursor.execute("""
-            CREATE TABLE IF NOT EXISTS process_data (
+            CREATE TABLE IF NOT EXISTS to_optuna (
                 process_id INTEGER,
                 data TEXT
             )
@@ -361,15 +354,13 @@ class SQL:
         conn.commit()
         conn.close()
 
-    # データが揃っているか確認する関数
+    # 4つノードから3つのデータが揃っているか確認
     def check_data_ready(self):
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
-        cursor.execute("SELECT process_id, COUNT(*) as count FROM process_data GROUP BY process_id")
+        cursor.execute("SELECT process_id, COUNT(*) as count FROM to_optuna GROUP BY process_id")
         results = cursor.fetchall()
         conn.close()
-
-        # すべてのプロセスから5つのデータが揃っているか確認
         if len(results) == 4 and all(count == 3 for _, count in results):
             return True
         return False
@@ -378,15 +369,15 @@ class SQL:
     def clear_data(self):
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
-        cursor.execute("DELETE FROM process_data")
+        cursor.execute("DELETE FROM to_optuna")
         conn.commit()
         conn.close()
 
-    # データ処理を行う関数
+    # データの参照
     def pick_data(self):
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
-        cursor.execute("SELECT * FROM process_data")
+        cursor.execute("SELECT * FROM to_optuna")
         data = cursor.fetchall()
         conn.close()
         return data
@@ -473,10 +464,10 @@ def main(trial):
     visual = Visual()
     visual.v1(trials)
     
-    # # パラメータファイルの削除(トライアル数が多い場合は必須)
-    # dirPath = os.path.dirname(os.path.realpath(__file__))
-    # dirPath = dirPath.replace('/nodes', '/save_model/TRIAL' + str(trials) + '/')
-    # shutil.rmtree(dirPath)
+    # パラメータファイルの削除(トライアル数が多い場合は必須)
+    dirPath = os.path.dirname(os.path.realpath(__file__))
+    dirPath = dirPath.replace('/nodes', '/save_model/TRIAL' + str(trials) + '/')
+    shutil.rmtree(dirPath)
 
     return round(score_list_ave, 2)
 
@@ -493,11 +484,11 @@ if __name__ == '__main__':
     ### Optunaの設定 ###########
     trial_size = 20 # 実行するトライアル数
     Target = 'both' # 'both' or 'network' or 'reward'
-    save_study = True # Optunaの内容をデータベースに保存
+    save_study = False # Optunaの内容をデータベースに保存
     load_study = False # 前回のOptunaの内容を引き継ぐ
     load_db_name = '10_25_99' # Optunaの内容を引き継ぐデータベース名
     shutdown = True # プログラム終了時にPCの電源を落とすか否か
-    fix = True # 0トライアルのパラメータ値の固定
+    fix = True # 初期トライアルのパラメータ値の固定(study.optimizeの直前でstudy.enqueue_trialを用いて追加してください)
     choice_param_only = False # 指定したパラメータのみを用いる
     ############################
     
@@ -550,7 +541,7 @@ if __name__ == '__main__':
     else: # スタンダード
         study.optimize(main, n_trials=trial_size)
 
-    # 探索時間の取得と記入
+    # 探索時間の取得と記録
     seconds = int(time.time() - time_optuna)
     m, s = divmod(seconds, 60)
     h, m = divmod(m, 60)

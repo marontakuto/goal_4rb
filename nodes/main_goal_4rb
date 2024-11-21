@@ -5,15 +5,11 @@
 
 import rospy
 import os
-import json
 import numpy as np
 import pandas as pd
-import random
 import time
 import sys
 sys.path.append(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))
-from collections import deque
-from std_msgs.msg import Float32MultiArray, Int32MultiArray, Float32, Int32
 from datetime import datetime
 import torch.nn.functional as F # 活性化関数
 import sqlite3
@@ -49,10 +45,10 @@ class ReinforceAgent():
         self.exploration = 'd_egreedy' # d_egreedy(decay_epsilon_greedy) or c_egreedy(constant_epsilon_greedy)
         self.lidar_num = 36 # DQNに入力するlidarの方向数
         self.action_size = 4 # 行動の種類数
-        self.episode = 45 # 40
-        self.eval_episode = 2 # 4
+        self.episode = 5 # 45
+        self.eval_episode = 6 # 6
         self.episode_step = 500 # 500
-        self.test_step = 500 # 500
+        self.test_step = 200 # 500
         self.target_update = 500 # 500
         self.multistep = 2
         self.discount_factor = 0.9 # 割引率 0.9
@@ -65,7 +61,7 @@ class ReinforceAgent():
         self.teleport = True # 衝突時は空いたスペースに再配置する
         self.termination_e = 999 # ロボットがフィールド外の左側に存在したら強制終了を始めるエピソード(最初のエピソードから行っていると無駄な計算量が出る)
         self.trial_restart = 999 # Optunaをロードして始めるトライアル
-        self.all_episode_test = False # すべてのエピソードをテスト
+        self.all_episode_test = True # すべてのエピソードをテスト
         self.synchro = True # エピソードごとの同期の有無
         if self.all_episode_test: # すべてのエピソードをテストする場合は必ず同期する
             self.synchro = True
@@ -219,7 +215,7 @@ class ReinforceAgent():
         df.to_excel(file_name, index=False)
 
     # 学習
-    def train(self, env, f_train_name, trials):
+    def train(self):
 
         # 使用するモデルのロード
         if self.load_model:
@@ -361,7 +357,7 @@ class ReinforceAgent():
         return test_episodes
 
     # テスト
-    def evaluate(self, env, test_e, f_test_name, f_evaluate_name, trials):
+    def evaluate(self, test_e):
 
         if self.robot_n in self.screen_list:
             print('start episode ' + str(test_e) + ' test (robot ' + str(self.robot_n) +')')
@@ -409,8 +405,8 @@ class ReinforceAgent():
 
                     ##### shielding(リカバリー方策) #####
                     if self.recovery and t >= 2:
-                        # if color_num < 100:
-                        #     action = env.recovery_change_action(test_e, input_scan, self.lidar_num, action, state, self.model.model) # LiDARの数値が低い方向への行動を避ける
+                        if color_num < 100:
+                            action = env.recovery_change_action(test_e, input_scan, self.lidar_num, action, state, self.model.model) # LiDARの数値が低い方向への行動を避ける
                         pass
                     #####################################
 
@@ -503,7 +499,7 @@ class ReinforceAgent():
         return score
 
     # デモンストレーション
-    def demo(self, env):
+    def demo(self):
         
         # 使用するモデルのロード
         self.model.load(self.dirPath + '/load_model/robot_' + str(self.robot_n))
@@ -577,39 +573,29 @@ class ReinforceAgent():
                         break
 
 
-def get_value_by_name(name):
-    cursor_to_main.execute('SELECT value FROM parameters WHERE name = ?', (name,))
+def get_value_by_name(name): # データベースの情報を適切な型に直して参照する
+    cursor_to_main.execute('SELECT value FROM to_main WHERE name = ?', (name,))
     result = cursor_to_main.fetchone()
     
     if result and result[0] is not None:
         value = result[0]
         try:
-            # 値がfloatに変換可能なら試行
-            float_value = float(value)
-            # 小数点以下が0ならintに変換
-            if float_value.is_integer():
+            float_value = float(value) # 値がfloatに変換可能なら試行
+            if float_value.is_integer(): # 小数点以下が0ならintに変換
                 return int(float_value)
             return float_value
         except ValueError:
             try:
-                # 値が関数名の場合は実行可能な関数を返す
                 func = eval(value)
                 if callable(func):
-                    return func
+                    return func # 値が関数名の場合は実行可能な関数を返す
                 else:
                     return value  # eval 結果が関数でない場合はそのまま返す
-            except (NameError, SyntaxError):
-                # それ以外の場合はそのまま文字列として返す
+            except (NameError, SyntaxError): # それ以外の場合はそのまま文字列として返す
                 return value
     else:
         return None
 
-def clear_all_values():
-    cursor_to_main.execute('''
-    UPDATE parameters
-    SET value = NULL, is_set = 0
-    ''')
-    to_main.commit()
 
 # メイン
 if __name__ == '__main__':
@@ -618,14 +604,16 @@ if __name__ == '__main__':
     training = True # 学習の有無
     evaluation = True # テストの有無
     demonstration = False # デモンストレーションの有無
+    load_test_num = 3 # ロードしたモデルでテストする回数(training = False, evaluation = True の場合)
 
     # 実験開始時間の取得
     dt = datetime.now() # 現在時刻の取得
     dtstr = dt.strftime('%m_%d_%H:%M:%S') # y(year), m(month), d(day), H(hour), M(minute), S(second)
 
-    to_main_db_name = os.path.dirname(os.path.realpath(__file__)) + "/score/parameters.db"
+    to_main_db_name = os.path.dirname(os.path.realpath(__file__)) + "/score/to_main.db"
 
-    while True:
+    while True: # 全トライアルの処理が終わるまでループ
+
         # データベースファイルが作成されたら処理を進める
         while True:
             if os.path.exists(os.path.dirname(to_main_db_name)):
@@ -637,7 +625,7 @@ if __name__ == '__main__':
         to_main = sqlite3.connect(to_main_db_name)
         cursor_to_main = to_main.cursor()
         while True:
-            cursor_to_main.execute('SELECT COUNT(*) FROM parameters WHERE is_set = 0')
+            cursor_to_main.execute('SELECT COUNT(*) FROM to_main WHERE is_set = 0')
             if cursor_to_main.fetchone()[0] == 0:
                 break
             time.sleep(0.1)
@@ -664,17 +652,16 @@ if __name__ == '__main__':
 
         agent = ReinforceAgent(network, conv_num, mid_layer_num, mid_units1, mid_units2, 
                                mid_units3, cnv_act, ful_act, optimizer, batch_size, Target, 
-                               trials) # ReinforceAgentクラスのインスタンス化
+                               trials)
 
         env = Env(agent.mode, agent.robot_n, agent.lidar_num, agent.input_list, 
-                  agent.teleport, r_collision, r_just, r_near, r_goal, r_cost, 
-                  Target) # Envクラスのインスタンス化(environmentファイルのクラス)
+                  agent.teleport, r_collision, r_just, r_near, r_goal, r_cost, Target)
 
         #########記録ファイル作成########################################################
         if training:
             # 学習ファイル
             f_train_file = os.path.dirname(os.path.realpath(__file__)) + '/score/'
-            f_train_name = f_train_file + str(agent.robot_n) + "_avoid_" + str(Target) + "_" + dtstr + "_train.xlsx"
+            f_train_name = f_train_file + str(agent.robot_n) + "_goal_4rb_" + str(Target) + "_" + dtstr + "_train.xlsx"
             # ディレクトリがない場合、作成する
             if not os.path.exists(f_train_file):
                 os.makedirs(f_train_file)
@@ -689,7 +676,7 @@ if __name__ == '__main__':
         if evaluation:
             # テストファイル
             f_test_file =  os.path.dirname(os.path.realpath(__file__)) + '/score/'
-            f_test_name = f_test_file + str(agent.robot_n) + "_avoid_" + str(Target) + "_" + dtstr + "_test.xlsx"
+            f_test_name = f_test_file + str(agent.robot_n) + "_goal_4rb_" + str(Target) + "_" + dtstr + "_test.xlsx"
             # ディレクトリがない場合、作成する
             if not os.path.exists(f_test_file):
                 os.makedirs(f_test_file)
@@ -704,7 +691,7 @@ if __name__ == '__main__':
 
             # 評価ファイル
             f_evaluate_file =  os.path.dirname(os.path.realpath(__file__)) + '/score/'
-            f_evaluate_name = f_evaluate_file + str(agent.robot_n) + "_avoid_" + str(Target) + "_" + dtstr + "_evaluate.xlsx"
+            f_evaluate_name = f_evaluate_file + str(agent.robot_n) + "_goal_4rb_" + str(Target) + "_" + dtstr + "_evaluate.xlsx"
             # ディレクトリがない場合、作成する
             if not os.path.exists(f_evaluate_file):
                 os.makedirs(f_evaluate_file)
@@ -719,18 +706,18 @@ if __name__ == '__main__':
         ################################################################################
         
         #########ロボットの学習・テスト・デモ#################
-        if training: # 学習の実行
-            test_episodes = agent.train(env, f_train_name, trials)
+        if training:
+            test_episodes = agent.train() # 学習の実行
             score_list = [0, 0, 0]
-        if evaluation: # テストの実行
+        if evaluation:
             score_list = []
             if 'test_episodes' not in locals():
-                test_episodes = [999, 999, 999]
+                test_episodes = [999 for _ in range(load_test_num)]
             for test_e in test_episodes:
-                score = agent.evaluate(env, test_e, f_test_name, f_evaluate_name, trials)
+                score = agent.evaluate(test_e)  # テストの実行
                 score_list.append(score)
-        if demonstration: # デモンストレーションの実行
-            agent.demo(env)
+        if demonstration:
+            agent.demo() # デモンストレーションの実行
             score_list = [0, 0, 0]
         if not training and not evaluation and not demonstration:
             score_list = [100, 100, 100]
@@ -740,15 +727,21 @@ if __name__ == '__main__':
         
         score_list = score_list[-3:] # 評価リストの後方3つを採用する
 
-        clear_all_values()
+        # データベースにあるパラメータ値の削除とsetフラグの解除
+        cursor_to_main.execute('''
+        UPDATE to_main
+        SET value = NULL, is_set = 0
+        ''')
+        to_main.commit()
 
-        # 結果の格納
+        # 結果格納用データベースに結果を格納
         for data in score_list:
             to_optuna = sqlite3.connect(os.path.dirname(os.path.realpath(__file__)) + "/score/to_optuna.db")
             cursor_to_optuna = to_optuna.cursor()
-            cursor_to_optuna.execute("INSERT INTO process_data (process_id, data) VALUES (?, ?)", (agent.robot_n, data))
+            cursor_to_optuna.execute("INSERT INTO to_optuna (process_id, data) VALUES (?, ?)", (agent.robot_n, data))
             to_optuna.commit()
             to_optuna.close()
         
+        # 最後のトライアルでループを抜ける
         if trials + 1 == trial_size:
             break
