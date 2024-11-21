@@ -45,18 +45,23 @@ class ReinforceAgent():
         self.exploration = 'd_egreedy' # d_egreedy(decay_epsilon_greedy) or c_egreedy(constant_epsilon_greedy)
         self.lidar_num = 36 # DQNに入力するlidarの方向数
         self.action_size = 4 # 行動の種類数
-        self.episode = 5 # 45
+        self.episode = 40 # 40
         self.eval_episode = 6 # 6
         self.episode_step = 500 # 500
-        self.test_step = 200 # 500
+        self.test_step = 200 # 200
         self.target_update = 500 # 500
         self.multistep = 2
         self.discount_factor = 0.9 # 割引率 0.9
-        self.replay_start_size = 500 # 初期探索 1000
+        self.replay_start_size = 500 # 初期探索 500
         self.gpu = 0 # ON:0, OFF:-1
 
+        self.mask_switch = True # 目標ゴールを緑に, 他のゴールを黒に変換
+        self.display_image_normal = False # 入力画像を表示する
+        self.display_image_mask = False # 入力画像を表示する
+        self.display_rb = [2] # カメラ画像を出力するロボットの識別番号
+
         ### 自ら作成した変数 ###
-        self.screen_list = [2] # 学習経過を出力するロボットの選択([0, 1] → robot0とrobot1の内容を出力)
+        self.screen_list = [2] # 学習経過を出力するロボットの識別番号
         self.recovery = True # リカバリー方策を適用するか否か
         self.teleport = True # 衝突時は空いたスペースに再配置する
         self.termination_e = 999 # ロボットがフィールド外の左側に存在したら強制終了を始めるエピソード(最初のエピソードから行っていると無駄な計算量が出る)
@@ -68,8 +73,8 @@ class ReinforceAgent():
         ########################
 
         ### オプション有無の実験 ###
-        # if trials >= 5:
-        #     self.teleport = False
+        if trials >= 5:
+            self.mask_switch = False
         ############################
 
         #######################################################################################
@@ -655,7 +660,9 @@ if __name__ == '__main__':
                                trials)
 
         env = Env(agent.mode, agent.robot_n, agent.lidar_num, agent.input_list, 
-                  agent.teleport, r_collision, r_just, r_near, r_goal, r_cost, Target)
+                  agent.teleport, r_collision, r_just, r_near, r_goal, r_cost, Target, 
+                  agent.mask_switch, agent.display_image_normal, agent.display_image_mask, 
+                  agent.display_rb)
 
         #########記録ファイル作成########################################################
         if training:

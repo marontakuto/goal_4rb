@@ -20,7 +20,10 @@ from sensor_msgs.msg import Image, CompressedImage
 import ros_numpy
 
 class Env():
-    def __init__(self, mode, robot_n, lidar_num, input_list, teleport, r_collision, r_just, r_near, r_goal, r_cost, Target):
+    def __init__(self, mode, robot_n, lidar_num, input_list, teleport, 
+                 r_collision, r_just, r_near, r_goal, r_cost, Target, 
+                 mask_switch, display_image_normal, display_image_mask, 
+                 display_rb):
         
         self.mode = mode
         self.robot_n = robot_n
@@ -34,20 +37,11 @@ class Env():
         self.pub_cmd_vel = rospy.Publisher('cmd_vel', Twist, queue_size=5)
         self.reset_proxy = rospy.ServiceProxy('gazebo/reset_simulation', Empty)
 
-        # 画像取得の前処理
-        if ('cam'in self.input_list) or ('previous_cam'in self.input_list) or ('previous2_cam'in self.input_list): 
-            if self.mode == 'sim':
-                self.sub_img = rospy.Subscriber('usb_cam/image_raw', Image, self.pass_img, queue_size=10) # シミュレーション用
-            else:
-                self.sub_img = rospy.Subscriber('usb_cam/image_raw/compressed', CompressedImage, self.pass_img, queue_size=10) # 実機用
-
-        self.lidar_max = 2 # 対象のworldにおいて取りうるlidarの最大値(simの貫通対策や正規化に使用)
-        self.lidar_min = 0.12 # lidarの最小測距値[m]
-        self.range_margin = self.lidar_min + 0.03 # 衝突として処理される距離[m] 0.02
-        self.display_image_normal = False # 入力画像を表示する
-        self.display_image_mask = False # 入力画像を表示する
-        self.display = [2] # カメラ画像を出力するロボットの識別番号
-        self.start_time = self.get_clock() # トライアル開始時の時間取得
+        # カメラ画像のマスク処理
+        self.mask_switch = mask_switch
+        self.display_image_normal = display_image_normal
+        self.display_image_mask = display_image_mask
+        self.display_rb = display_rb
 
         # Optunaで選択された報酬値
         self.r_collision = r_collision
@@ -56,6 +50,11 @@ class Env():
         self.r_goal = r_goal
         self.r_cost = r_cost
         self.Target = Target
+
+        # LiDARについての設定
+        self.lidar_max = 2 # 対象のworldにおいて取りうるlidarの最大値(simの貫通対策や正規化に使用)
+        self.lidar_min = 0.12 # lidarの最小測距値[m]
+        self.range_margin = self.lidar_min + 0.03 # 衝突として処理される距離[m] 0.02
 
         # 初期のゴールの色
         if self.robot_n == 0:
@@ -67,25 +66,6 @@ class Env():
         elif self.robot_n == 3:
             self.goal_color = 'red'
 
-    def pass_img(self, img): # 画像正常取得用callback
-        pass
-
-    def get_clock(self): # シミュレーションでの倍速に対して当倍速として時間を取得する
-        if self.mode == 'sim':
-            data = None
-            while data is None:
-                try:
-                    data = rospy.wait_for_message('/clock', Clock, timeout=10)
-                except:
-                    time.sleep(2)
-                    print('Please check "mode"!')
-                    pass
-            secs = data.clock.secs
-            nsecs = data.clock.nsecs / 10 ** 9
-            return secs + nsecs
-        else:
-            return time.time()
-        
     def get_lidar(self, restart=False, retake=False): # lidar情報の取得
         if retake:
             self.scan = None
@@ -152,14 +132,14 @@ class Env():
             
             if self.mode == 'sim':
                 img = ros_numpy.numpify(img)
+                img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB) # カラー画像(BGR)
             else:
                 img = np.frombuffer(img.data, np.uint8)
-                img = cv2.imdecode(img, cv2.IMREAD_COLOR)
+                img = cv2.imdecode(img, cv2.IMREAD_COLOR) # カラー画像(BGR)
             
-            img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB) # カラー画像
             img = cv2.resize(img, (48, 27)) # 取得した画像を48×27[pixel]に変更
 
-            if self.display_image_normal and self.robot_n in self.display:
+            if self.display_image_normal and self.robot_n in self.display_rb:
                 self.display_image(img, f'camera_normal_{self.robot_n}')
             
             self.img = img
@@ -173,7 +153,7 @@ class Env():
         state_list = [] # 入力する情報を格納するリスト
 
         img = self.get_camera() # カメラ画像の取得
-        img, goal_num = self.goal_mask(img) # 目標ゴールを緑に, 他のゴールを黒に変換
+        img, goal_num = self.goal_mask(img) # 目標ゴールを緑に, 他のゴールを黒に変換 + ゴールの画素数取得
         scan = self.get_lidar() # LiDAR値の取得
         
         # 入力するカメラ画像の処理
@@ -244,7 +224,7 @@ class Env():
                 elif self.goal_color == 'purple':
                     self.goal_color = 'yellow'
         
-        return state_list, img, scan, input_scan, collision, goal, goal_num
+        return state_list, scan, input_scan, collision, goal, goal_num
    
     def setReward(self, scan, collision, goal, goal_num):
 
@@ -290,19 +270,19 @@ class Env():
         "行動時間は行動を決定してから次の行動が決まるまでであるため1秒もない"
 
         if action == 0: # 左折
-            vel_cmd.linear.x = 0.2 # 直進方向[m/s]
+            vel_cmd.linear.x = 0.15 # 直進方向[m/s]
             vel_cmd.angular.z = 1.57 # 回転方向 [rad/s]
         
-        elif action == 1: # 直進
-            vel_cmd.linear.x = 0.15 # 直進方向[m/s]
+        elif action == 1: # 直進(高速)
+            vel_cmd.linear.x = 0.10 # 直進方向[m/s]
             vel_cmd.angular.z = 0 # 回転方向[rad/s]
 
         elif action == 2: # 右折
-            vel_cmd.linear.x = 0.2 # 直進方向[m/s]
+            vel_cmd.linear.x = 0.15 # 直進方向[m/s]
             vel_cmd.angular.z = -1.57 # 回転方向[rad/s]
         
         elif action == 3: # 直進(低速)
-            vel_cmd.linear.x = 0.1 # 直進方向[m/s]
+            vel_cmd.linear.x = 0.07 # 直進方向[m/s]
             vel_cmd.angular.z = 0 # 回転方向[rad/s]
                 
         if action == 99: # 停止
@@ -313,7 +293,7 @@ class Env():
         vel_cmd.linear.z = vel_cmd.linear.z * deceleration
         
         self.pub_cmd_vel.publish(vel_cmd) # 実行
-        state_list, img, scan, input_scan, collision, goal, goal_num = self.getState() # 状態観測
+        state_list, scan, input_scan, collision, goal, goal_num = self.getState() # 状態観測
         reward, color_num, just_count = self.setReward(scan, collision, goal, goal_num) # 報酬計算
 
         if not test: # テスト時でないときの処理
@@ -328,7 +308,7 @@ class Env():
     def reset(self):
         self.img = None
         self.scan = None
-        state_list, _, _, _, _, _, _ = self.getState()
+        state_list, _, _, _, _, _ = self.getState()
         return np.array(state_list)
     
     def restart(self):
@@ -342,7 +322,7 @@ class Env():
             while True:
                 
                 vel_cmd.linear.x = 0 # 直進方向[m/s]
-                vel_cmd.angular.z = pi/4 # 回転方向[rad/s]
+                vel_cmd.angular.z = pi / 4 # 回転方向[rad/s]
                 self.pub_cmd_vel.publish(vel_cmd) # 実行
                 data_range = self.get_lidar(restart=True, retake=True)
                 
@@ -376,9 +356,9 @@ class Env():
             while True:
                 vel_cmd.linear.x = 0 # 直進方向[m/s]
                 if num == 0:
-                    vel_cmd.angular.z = pi/4 # 回転方向[rad/s]
+                    vel_cmd.angular.z = pi / 4 # 回転方向[rad/s]
                 else:
-                    vel_cmd.angular.z = -pi/4 # 回転方向[rad/s]
+                    vel_cmd.angular.z = -pi / 4 # 回転方向[rad/s]
                 self.pub_cmd_vel.publish(vel_cmd) # 実行
                 data_range = self.get_lidar(restart=True, retake=True)
                 if data_range.index(min(data_range)) in side_list: # 側面のLiDAR値が最小である時
@@ -556,10 +536,11 @@ class Env():
                 changed_color = [0, 255, 0] # ゴールは緑色に変換
             else:
                 changed_color = [0, 0, 0] # 他の色は黒に変換
-            img[mask > 0] = changed_color
+            if self.mask_switch:
+                img[mask > 0] = changed_color
 
         # 画像の出力
-        if self.display_image_mask and self.robot_n in self.display:
+        if self.display_image_mask and self.robot_n in self.display_rb:
             self.display_image(img, f'camera_mask_{self.robot_n}')
         
         return img, goal_num
@@ -701,35 +682,18 @@ class Env():
         return exist
 
     # 以降リカバリー方策
-    def recovery_deceleration(self, input_scan, lidar_num): # LiDAR前方の数値が低い場合は減速させる
-
-        threshold = 0.1 # 減速させ始める距離
-        forward = list(range(round(lidar_num*0.9)+1, lidar_num)) + list(range(0, round(lidar_num*0.1))) # LiDARの前方とする要素番号(左右30度ずつ)
-
-        # LiDARのリストで条件に合う要素を格納したリストをインスタンス化(element_num:要素番号, element_cont:要素内容)
-        low_lidar = [element_num for element_num, element_cont in enumerate(input_scan) if element_cont <= threshold]
-
-        # 指定したリストと条件に合う要素のリストで同じ数字があった場合
-        if set(forward) & set(low_lidar) != set():
-            deceleration = 0.7 # 元の速度の何%の速度にするか
-            # print(self.robot_n)
-        else:
-            deceleration = 1 # 減速なし
-        
-        return deceleration
-    
     def recovery_change_action(self, e, input_scan, lidar_num, action, state, model): # LiDARの数値が低い方向への行動を避ける
 
         ### ユーザー設定パラメータ ###
-        threshold = 0.18 # 何mでセンサーが反応したら動きを変えるか決める数値
-        probabilistic = False # True: リカバリー方策を確率的に利用する, False: リカバリー方策を必ず利用する
+        threshold = 0.2 # 動きを変える距離(LiDAR値)[m]
+        probabilistic = True # True: リカバリー方策を確率的に利用する, False: リカバリー方策を必ず利用する
         initial_probability = 1.0 # 最初の確率
-        finish_episode = 15 # 方策を適応する最後のエピソード
+        finish_episode = 25 # 方策を適応する最後のエピソード
         mode_change_episode = 11 # 行動変更のトリガーをLiDAR値からQ値に変えるエピソード
         ############################
 
         # リカバリー方策の利用判定
-        if not probabilistic: # 必ず利用
+        if not probabilistic and e <= finish_episode: # 必ず利用
             pass
         elif random.random() < round(initial_probability - (initial_probability / finish_episode) * (e - 1), 3): # 確率で利用(確率は線形減少)
             pass
