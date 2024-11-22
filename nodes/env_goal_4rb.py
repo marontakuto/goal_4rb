@@ -318,9 +318,6 @@ class Env():
             else:
                 vel_cmd.linear.x = 0.1 # 前進[m/s]
             
-            if self.robot_n in self.display_rb:
-                print("restarting")
-            
             self.pub_cmd_vel.publish(vel_cmd) # 実行
 
             data_range = self.get_lidar(retake=True)

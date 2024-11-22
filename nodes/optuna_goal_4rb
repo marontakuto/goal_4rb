@@ -166,7 +166,6 @@ class Select: # Optunaのパラメータを管理するデータベースを操�
         
         for name in parameters:
             self.set_parameter_value(name, locals()[name])
-            value = self.get_value_by_name(name)
     
     # パラメータの初期化関数
     def initialize_parameters(self, param_names):
@@ -193,15 +192,6 @@ class Select: # Optunaのパラメータを管理するデータベースを操�
         SET value = NULL, is_set = 0
         ''')
         self.conn.commit()
-
-    # 特定の名前の値をそのまま取得
-    def get_value_by_name(self, name):
-        self.cursor.execute('SELECT value FROM to_main WHERE name = ?', (name,))
-        result = self.cursor.fetchone()
-        if result and result[0] is not None:
-            return result[0]  # 値をそのまま返す
-        else:
-            return None
 
 
 class DynamicGammaTPE(TPESampler): # 上位群の割合を変動させるTPE
