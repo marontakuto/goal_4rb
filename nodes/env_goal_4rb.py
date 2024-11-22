@@ -21,8 +21,8 @@ import ros_numpy
 
 class Env():
     def __init__(self, mode, robot_n, lidar_num, input_list, teleport, 
-                 r_collision, r_just, r_near, r_goal, r_cost, Target, 
-                 mask_switch, display_image_normal, display_image_mask, 
+                 r_collision, r_just, r_near, r_goal, r_cost, r_passive, 
+                 Target, mask_switch, display_image_normal, display_image_mask, 
                  display_rb):
         
         self.mode = mode
@@ -49,6 +49,7 @@ class Env():
         self.r_near = r_near
         self.r_goal = r_goal
         self.r_cost = r_cost
+        self.r_passive = r_passive
         self.Target = Target
 
         # LiDARについての設定
@@ -219,7 +220,7 @@ class Env():
         
         return state_list, scan, input_scan, collision, goal, goal_num
    
-    def setReward(self, scan, collision, goal, goal_num):
+    def setReward(self, scan, collision, goal, goal_num,  action):
 
         reward = 0
         color_num = 0
@@ -228,30 +229,30 @@ class Env():
 
         if self.Target == 'both' or self.Target == 'reward':
             if goal:
-                reward += self.r_goal
+                reward += self.r_goal + self.r_cost
                 just_count = 1
             elif collision:
                 reward -= self.r_collision
-                reward -= self.r_cost
-            else:
-                reward -= self.r_cost
+            if action == 3:
+                reward -= self.r_passive
+            reward -= self.r_cost
             reward += goal_num * self.r_just
             reward -= min(1 / (min(scan) + 0.01), 7) * self.r_near
         else:
             if goal:
-                reward += 50 # r_goal
+                reward += 50 + 10 # r_goal + r_cost
                 just_count = 1
             elif collision:
                 reward -= 50 # r_collision
-                reward -= 10 # r_cost
-            else:
-                reward -= 10 # r_cost
+            if action == 3:
+                reward -= 50 # r_passive
+            reward -= 10 # r_cost
             reward += goal_num * 1 # r_just
             reward -= min(1 / (min(scan) + 0.01), 7) * 1 # r_near
         
         return reward, color_num, just_count
 
-    def step(self, action, deceleration, test): # 1stepの行動
+    def step(self, action, test): # 1stepの行動
 
         self.img = None
         self.scan = None
@@ -277,17 +278,10 @@ class Env():
         elif action == 3: # 停止
             vel_cmd.linear.x = 0 # 直進方向[m/s]
             vel_cmd.angular.z = 0 # 回転方向[rad/s]
-                
-        if action == 99: # 停止
-            vel_cmd.linear.x = 0 # 直進方向[m/s]
-            vel_cmd.angular.z = 0 # 回転方向[rad/s]
-        
-        vel_cmd.linear.x = vel_cmd.linear.x * deceleration
-        vel_cmd.linear.z = vel_cmd.linear.z * deceleration
         
         self.pub_cmd_vel.publish(vel_cmd) # 実行
         state_list, scan, input_scan, collision, goal, goal_num = self.getState() # 状態観測
-        reward, color_num, just_count = self.setReward(scan, collision, goal, goal_num) # 報酬計算
+        reward, color_num, just_count = self.setReward(scan, collision, goal, goal_num, action) # 報酬計算
 
         if not test: # テスト時でないときの処理
             if (collision or goal) and not self.teleport:
