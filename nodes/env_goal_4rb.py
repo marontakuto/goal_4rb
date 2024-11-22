@@ -66,7 +66,7 @@ class Env():
         elif self.robot_n == 3:
             self.goal_color = 'red'
 
-    def get_lidar(self, restart=False, retake=False): # lidar情報の取得
+    def get_lidar(self, retake=False): # lidar情報の取得
         if retake:
             self.scan = None
         
@@ -95,19 +95,12 @@ class Env():
                 else:
                     data_range.append(scan.ranges[i]) # 実機では取得した値をそのまま利用
 
+            # lidar値を[360/(self.lidar_num)]deg刻み[self.lidar_num]方向で取得
             use_list = [] # 計算に利用するLiDAR値を格納するリスト
-            if restart:
-                # lidar値を45deg刻み8方向で取得(リスタート用)
-                for i in range(8):
-                    index = (len(data_range) // 8) * i
-                    scan = max(data_range[index - 2], data_range[index - 1], data_range[index], data_range[index + 1], data_range[index + 2]) # 実機の飛び値対策(値を取得できず0になる場合があるため前後2度で最大の値を採用)
-                    use_list.append(scan)
-            else:
-                # lidar値を[360/(self.lidar_num)]deg刻み[self.lidar_num]方向で取得
-                for i in range(self.lidar_num):
-                    index = (len(data_range) // self.lidar_num) * i
-                    scan = max(data_range[index - 2], data_range[index - 1], data_range[index], data_range[index + 1], data_range[index + 2]) # 実機の飛び値対策(値を取得できず0になる場合があるため前後2度で最大の値を採用)
-                    use_list.append(scan)
+            for i in range(self.lidar_num):
+                index = (len(data_range) // self.lidar_num) * i
+                scan = max(data_range[index - 2], data_range[index - 1], data_range[index], data_range[index + 1], data_range[index + 2]) # 実機の飛び値対策(値を取得できず0になる場合があるため前後2度で最大の値を採用)
+                use_list.append(scan)
             
             self.scan = use_list
 
@@ -281,8 +274,8 @@ class Env():
             vel_cmd.linear.x = 0.15 # 直進方向[m/s]
             vel_cmd.angular.z = -1.57 # 回転方向[rad/s]
         
-        elif action == 3: # 直進(低速)
-            vel_cmd.linear.x = 0.07 # 直進方向[m/s]
+        elif action == 3: # 停止
+            vel_cmd.linear.x = 0 # 直進方向[m/s]
             vel_cmd.angular.z = 0 # 回転方向[rad/s]
                 
         if action == 99: # 停止
@@ -317,23 +310,26 @@ class Env():
         front_side = list(range(0, self.lidar_num * 1 // 4 + 1)) + list(range(self.lidar_num * 3 // 4, self.lidar_num))
         left_side = list(range(0, self.lidar_num * 1 // 2 + 1))
 
-        data_range = self.get_lidar(restart=True, retake=True)
+        data_range = self.get_lidar(retake=True)
 
         while True:
             if data_range.index(min(data_range)) in left_side: # 左側に障害物がある時
-                vel_cmd.angular.z = -pi / 4 # 右回転[rad/s]
+                vel_cmd.angular.z = -pi / 2 # 右回転[rad/s]
             else:
-                vel_cmd.angular.z = pi / 4 # 左回転[rad/s]
+                vel_cmd.angular.z = pi / 2 # 左回転[rad/s]
             
             if data_range.index(min(data_range)) in front_side: # 前方に障害物がある時
-                vel_cmd.linear.x = -0.15 # 後退[m/s]
+                vel_cmd.linear.x = -0.1 # 後退[m/s]
                 vel_cmd.angular.z = vel_cmd.angular.z * -1 # 回転方向反転[rad/s]
             else:
-                vel_cmd.linear.x = 0.15 # 前進[m/s]
+                vel_cmd.linear.x = 0.1 # 前進[m/s]
+            
+            if self.robot_n in self.display_rb:
+                print("restarting")
             
             self.pub_cmd_vel.publish(vel_cmd) # 実行
 
-            data_range = self.get_lidar(restart=True, retake=True)
+            data_range = self.get_lidar(retake=True)
 
             if min(data_range) > self.range_margin + 0.1: # LiDAR値が衝突判定の距離より余裕がある時
                 self.stop()
