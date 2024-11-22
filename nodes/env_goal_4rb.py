@@ -480,7 +480,6 @@ class Env():
         set_state(state_msg)
 
     # 以降追加システム
-
     def goal_mask(self, img): # 目標ゴールを緑に, 他のゴールを黒に変換
 
         goal_num = 0
