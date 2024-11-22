@@ -82,7 +82,7 @@ class Env():
             
             data_range = [] # 取得したLiDAR値を修正して格納するリスト
             for i in range(len(scan.ranges)):
-                if scan.ranges[i] == float('Inf'): # 最大より遠いなら3.5
+                if scan.ranges[i] == float('Inf'): # 最大より遠いなら3.5(LiDARの規格で取得できる最大値)
                     data_range.append(3.5)
                 if np.isnan(scan.ranges[i]): # 最小より近いなら0
                     data_range.append(0)
