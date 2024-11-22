@@ -417,7 +417,7 @@ def main(trial):
     score_rb3_list = []
 
     for row in data:
-        locals()[f"score_rb{row[0]}_list"].append(float(row[1])) # 各ロボットのscoreリストを作成
+        locals()[f"score_rb{row[0]}_list"].append(float(row[1])) # 各ロボットのscoreリストに結果を格納
 
     score_1st_last_list = [score_rb0_list[0], score_rb1_list[0], score_rb2_list[0], score_rb3_list[0]]
     score_2nd_last_list = [score_rb0_list[1], score_rb1_list[1], score_rb2_list[1], score_rb3_list[1]]
@@ -465,9 +465,12 @@ def main(trial):
     visual.v1(trials)
     
     # パラメータファイルの削除(トライアル数が多い場合は必須)
-    dirPath = os.path.dirname(os.path.realpath(__file__))
-    dirPath = dirPath.replace('/nodes', '/save_model/TRIAL' + str(trials) + '/')
-    shutil.rmtree(dirPath)
+    try:
+        dirPath = os.path.dirname(os.path.realpath(__file__))
+        dirPath = dirPath.replace('/nodes', '/save_model/TRIAL' + str(trials) + '/')
+        shutil.rmtree(dirPath)
+    except:
+        pass
 
     return round(score_list_ave, 2)
 
@@ -482,7 +485,7 @@ if __name__ == '__main__':
     optuna_db_path = 'sqlite:///' + os.path.dirname(os.path.realpath(__file__)) + '/score/optuna.db' # データベースの保存場所
 
     ### Optunaの設定 ###########
-    trial_size = 10 # 実行するトライアル数
+    trial_size = 1 # 実行するトライアル数
     Target = 'both' # 'both' or 'network' or 'reward'
     save_study = False # Optunaの内容をデータベースに保存
     load_study = False # 前回のOptunaの内容を引き継ぐ

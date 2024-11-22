@@ -301,7 +301,6 @@ class Env():
                 self.restart() # 進行方向への向き直し
             elif collision or goal:
                 self.relocation() # 空いているエリアへの再配置
-                time.sleep(0.1)
         
         return np.array(state_list), reward, color_num, just_count, collision, goal, input_scan
 
@@ -478,6 +477,8 @@ class Env():
         rospy.wait_for_service('/gazebo/set_model_state')
         set_state = rospy.ServiceProxy('/gazebo/set_model_state', SetModelState)
         set_state(state_msg)
+
+        time.sleep(0.1) # 配置後すぐに行動させた場合は配置前の情報が使われることがあるため数秒待機
 
     # 以降追加システム
     def goal_mask(self, img): # 目標ゴールを緑に, 他のゴールを黒に変換

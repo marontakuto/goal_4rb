@@ -73,8 +73,8 @@ class ReinforceAgent():
         ########################
 
         ### オプション有無の実験 ###
-        if trials >= 5:
-            self.mask_switch = False
+        # if trials >= 5:
+        #     self.mask_switch = False
         ############################
 
         #######################################################################################
@@ -606,10 +606,10 @@ def get_value_by_name(name): # データベースの情報を適切な型に直�
 if __name__ == '__main__':
     rospy.init_node('main_goal_4rb')
 
-    training = True # 学習の有無
+    training = False # 学習の有無
     evaluation = True # テストの有無
     demonstration = False # デモンストレーションの有無
-    load_test_num = 3 # ロードしたモデルでテストする回数(training = False, evaluation = True の場合)
+    load_test_num = 3 # ロードしたモデルでテストする回数(training = False, evaluation = True の場合) ※3以上必須
 
     # 実験開始時間の取得
     dt = datetime.now() # 現在時刻の取得
