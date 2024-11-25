@@ -44,7 +44,7 @@ class ReinforceAgent():
         self.net = network
         self.exploration = 'd_egreedy' # d_egreedy(decay_epsilon_greedy) or c_egreedy(constant_epsilon_greedy)
         self.lidar_num = 36 # DQNに入力するlidarの方向数
-        self.action_size = 4 # 行動の種類数
+        self.action_size = 5 # 行動の種類数
         self.episode = 40 # 40
         self.eval_episode = 6 # 6
         self.episode_step = 500 # 500
@@ -59,8 +59,8 @@ class ReinforceAgent():
         self.mask_switch = True # 目標ゴールを緑に, 他のゴールを黒に変換
         self.display_image_normal = False # 加工していない画像の表示
         self.display_image_mask = False # マスク処理した画像の表示
-        self.display_rb = [2] # カメラ画像を出力するロボットの識別番号
-        self.screen_list = [2] # 学習経過を出力するロボットの識別番号
+        self.display_rb = [1] # カメラ画像を出力するロボットの識別番号
+        self.screen_list = [1] # 学習経過を出力するロボットの識別番号
         self.recovery = True # リカバリー方策を適用するか否か
         self.teleport = True # 衝突時は空いたスペースに再配置する
         self.termination_e = 999 # ロボットがフィールド外の左側に存在したら強制終了を始めるエピソード(最初のエピソードから行っていると無駄な計算量が出る)
@@ -72,8 +72,15 @@ class ReinforceAgent():
         ########################
 
         ### オプション有無の実験 ###
-        # if trials >= 5:
-        #     self.mask_switch = False
+        if trials >= 5:
+            self.recovery = False
+
+        # if trials >= 15:
+        #     self.recovery = False
+        # elif trials >= 10:
+        #     self.recovery = False
+        # elif trials >= 5:
+        #     self.recovery = False
         ############################
 
         #######################################################################################
@@ -385,6 +392,7 @@ class ReinforceAgent():
 
                 if self.mode == 'sim':
                     env.set_robot(eval_e)
+                    time.sleep(0.5)
                 else: # real
                     while True:
                         yn = input('set the robot(y/n)')
@@ -602,7 +610,7 @@ if __name__ == '__main__':
     training = True # 学習の有無
     evaluation = True # テストの有無
     demonstration = False # デモンストレーションの有無
-    load_test_num = 3 # ロードしたモデルでテストする回数(training = False, evaluation = True の場合) ※3以上必須
+    load_test_num = 5 # ロードしたモデルでテストする回数(training = False, evaluation = True の場合) ※3以上必須
 
     # 実験開始時間の取得
     dt = datetime.now() # 現在時刻の取得
