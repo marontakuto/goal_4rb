@@ -16,8 +16,8 @@ Gazeboで群ロボットの回避行動の獲得を実現するためのリポ�
 5. cd ~/catkin_ws/turtlebot3_learning_machine/turtlebot3_dqn
 6. git clone https://github.com/marontakuto/goal_4rb.git
 7. ターミナルを2つ開く
-8. roslaunch turtlebot3_dqn world_goal_3rb.launch # 1つ目のターミナルで実行
-9. roslaunch turtlebot3_dqn exe_goal_3rb.launch # 2つ目のターミナルで実行
+8. roslaunch turtlebot3_dqn world_goal_4rb.launch # 1つ目のターミナルで実行
+9. roslaunch turtlebot3_dqn exe_goal_4rb.launch # 2つ目のターミナルで実行
 10. 実機で動かす場合はIPアドレスなどの設定のために以下を実行してください
 11. sudo nano .bashrc # 実行後に最下層を以下のように変更
 <pre>
