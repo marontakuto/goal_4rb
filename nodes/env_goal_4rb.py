@@ -22,8 +22,8 @@ import ros_numpy
 class Env():
     def __init__(self, mode, robot_n, lidar_num, input_list, teleport, 
                  r_collision, r_just, r_near, r_goal, r_cost, r_passive, 
-                 Target, mask_switch, display_image_normal, display_image_mask, 
-                 display_rb):
+                 Target, trials, mask_switch, display_image_normal, 
+                 display_image_mask, display_rb):
         
         self.mode = mode
         self.robot_n = robot_n
@@ -51,6 +51,7 @@ class Env():
         self.r_cost = r_cost
         self.r_passive = r_passive
         self.Target = Target
+        self.trials = trials
 
         # LiDARについての設定
         self.lidar_max = 2 # 対象のworldにおいて取りうるlidarの最大値(simの貫通対策や正規化に使用)
@@ -245,7 +246,7 @@ class Env():
                 just_count = 1
             elif collision:
                 reward -= self.r_collision
-            if action in [3, 4]:
+            if action in [3, 4, 5]:
                 reward -= self.r_passive
             reward -= self.r_cost
             reward += goal_num * self.r_just
@@ -256,7 +257,7 @@ class Env():
                 just_count = 1
             elif collision:
                 reward -= 50 # r_collision
-            if action in [3, 4]:
+            if action in [3, 4, 5]:
                 reward -= 50 # r_passive
             reward -= 10 # r_cost
             reward += goal_num * 1 # r_just
@@ -294,6 +295,10 @@ class Env():
         elif action == 4: # 右旋回
             vel_cmd.linear.x = 0
             vel_cmd.angular.z = -1.57
+        
+        elif action == 5: # 後退
+            vel_cmd.linear.x = -0.10
+            vel_cmd.angular.z = 0
         
         self.pub_cmd_vel.publish(vel_cmd) # 実行
         state_list, scan, input_scan, collision, goal, goal_num = self.getState() # 状態観測
@@ -665,8 +670,23 @@ class Env():
         threshold = 0.2 # 動きを変える距離(LiDAR値)[m]
         probabilistic = True # True: リカバリー方策を確率的に利用する, False: リカバリー方策を必ず利用する
         initial_probability = 1.0 # 最初の確率
-        finish_episode = 25 # 方策を適応する最後のエピソード
+        finish_episode = 20 # 方策を適応する最後のエピソード
         mode_change_episode = 11 # 行動変更のトリガーをLiDAR値からQ値に変えるエピソード
+        ############################
+
+        ### 設定変更の実験 ###
+        if self.trials >= 9:
+            probabilistic = False
+            finish_episode = 20
+        elif self.trials >= 6:
+            probabilistic = True
+            finish_episode = 20
+        elif self.trials >= 3:
+            probabilistic = False
+            finish_episode = 40
+        else:
+            probabilistic = True
+            finish_episode = 40
         ############################
 
         # リカバリー方策の利用判定

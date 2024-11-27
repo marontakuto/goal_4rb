@@ -44,7 +44,7 @@ class ReinforceAgent():
         self.net = network
         self.exploration = 'd_egreedy' # d_egreedy(decay_epsilon_greedy) or c_egreedy(constant_epsilon_greedy)
         self.lidar_num = 36 # DQNに入力するlidarの方向数
-        self.action_size = 5 # 行動の種類数
+        self.action_size = 6 # 行動の種類数
         self.episode = 40 # 40
         self.eval_episode = 6 # 6
         self.episode_step = 500 # 500
@@ -72,15 +72,14 @@ class ReinforceAgent():
         ########################
 
         ### オプション有無の実験 ###
-        if trials >= 5:
-            self.recovery = False
-
-        # if trials >= 15:
-        #     self.recovery = False
-        # elif trials >= 10:
-        #     self.recovery = False
-        # elif trials >= 5:
-        #     self.recovery = False
+        if trials >= 9:
+            self.recovery = True
+        elif trials >= 6:
+            self.recovery = True
+        elif trials >= 3:
+            self.recovery = True
+        else:
+            self.recovery = True
         ############################
 
         #######################################################################################
@@ -663,7 +662,7 @@ if __name__ == '__main__':
 
         env = Env(agent.mode, agent.robot_n, agent.lidar_num, agent.input_list, 
                   agent.teleport, r_collision, r_just, r_near, r_goal, r_cost, r_passive, 
-                  Target, agent.mask_switch, agent.display_image_normal, agent.display_image_mask, 
+                  Target, trials, agent.mask_switch, agent.display_image_normal, agent.display_image_mask, 
                   agent.display_rb)
 
         #########記録ファイル作成########################################################
