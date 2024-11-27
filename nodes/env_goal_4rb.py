@@ -288,17 +288,54 @@ class Env():
             vel_cmd.linear.x = 0.15
             vel_cmd.angular.z = -1.57
         
-        elif action == 3: # 左旋回
-            vel_cmd.linear.x = 0
-            vel_cmd.angular.z = 1.57
+        # elif action == 3: # 左旋回
+        #     vel_cmd.linear.x = 0
+        #     vel_cmd.angular.z = 1.57
         
-        elif action == 4: # 右旋回
-            vel_cmd.linear.x = 0
-            vel_cmd.angular.z = -1.57
+        # elif action == 4: # 右旋回
+        #     vel_cmd.linear.x = 0
+        #     vel_cmd.angular.z = -1.57
         
-        elif action == 5: # 後退
-            vel_cmd.linear.x = -0.10
-            vel_cmd.angular.z = 0
+        # elif action == 5: # 後退
+        #     vel_cmd.linear.x = -0.10
+        #     vel_cmd.angular.z = 0
+        
+        if self.trials >= 9:
+            if action == 3: # 左旋回
+                vel_cmd.linear.x = 0
+                vel_cmd.angular.z = 1.57
+            
+            elif action == 4: # 右旋回
+                vel_cmd.linear.x = 0
+                vel_cmd.angular.z = -1.57
+            
+            elif action == 5: # 後退
+                vel_cmd.linear.x = -0.10
+                vel_cmd.angular.z = 0
+        elif self.trials >= 6:
+            if action == 3: # 後退
+                vel_cmd.linear.x = -0.10
+                vel_cmd.angular.z = 0
+        elif self.trials >= 3:
+            if action == 3: # 左旋回
+                vel_cmd.linear.x = 0
+                vel_cmd.angular.z = 1.57
+            
+            elif action == 4: # 右旋回
+                vel_cmd.linear.x = 0
+                vel_cmd.angular.z = -1.57
+        else:
+            if action == 3: # 左旋回
+                vel_cmd.linear.x = 0
+                vel_cmd.angular.z = 1.57
+            
+            elif action == 4: # 右旋回
+                vel_cmd.linear.x = 0
+                vel_cmd.angular.z = -1.57
+            
+            elif action == 5: # 後退
+                vel_cmd.linear.x = -0.10
+                vel_cmd.angular.z = 0
         
         self.pub_cmd_vel.publish(vel_cmd) # 実行
         state_list, scan, input_scan, collision, goal, goal_num = self.getState() # 状態観測
@@ -677,12 +714,12 @@ class Env():
         ### 設定変更の実験 ###
         if self.trials >= 9:
             probabilistic = False
-            finish_episode = 20
+            finish_episode = 40
         elif self.trials >= 6:
             probabilistic = True
-            finish_episode = 20
+            finish_episode = 40
         elif self.trials >= 3:
-            probabilistic = False
+            probabilistic = True
             finish_episode = 40
         else:
             probabilistic = True

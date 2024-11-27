@@ -73,12 +73,16 @@ class ReinforceAgent():
 
         ### オプション有無の実験 ###
         if trials >= 9:
+            self.action_size = 6
             self.recovery = True
         elif trials >= 6:
+            self.action_size = 4
             self.recovery = True
         elif trials >= 3:
+            self.action_size = 5
             self.recovery = True
         else:
+            self.action_size = 6
             self.recovery = True
         ############################
 
