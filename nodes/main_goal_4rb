@@ -34,11 +34,9 @@ class ReinforceAgent():
         self.mode = 'sim' # sim or real
         self.choice_model = False # dirPath/load_model/robot_n でテスト
 
-        self.save_model = False # 重みとリプレイバッファを保存するか
-        self.save_episode = 5 # (↑True時)重み保存を開始するエピソード
+        self.save_rbuf = False # リプレイバッファを保存するか(モデルは必ず保存されます)
         self.load_model = False # 保存した重みを適用するか
-        self.load_episode = 1 # (↑True時)適用する保存済重みのエピソード
-        self.load_rbuf = False
+        self.load_rbuf = False # 保存したリプレイバッファを適用するか
 
         self.input_list = ['lidar', 'cam', 'previous_lidar', 'previous_cam', 'previous2_lidar', 'previous2_cam'] # 'lidar', 'cam', 'previous_cam', 'previous_lidar', 'previous2_lidar', 'previous2_cam'
         self.net = network
@@ -267,7 +265,7 @@ class ReinforceAgent():
 
                 ##### shielding(リカバリー方策) #####
                 if self.recovery and t >= 2:
-                    if color_num < 100:
+                    if color_num < 50:
                         action = env.recovery_change_action(e, self.lidar_num, action, state, self.model.model) # LiDARの数値が低い方向への行動を避ける
                     pass
                 #####################################
@@ -319,12 +317,9 @@ class ReinforceAgent():
                         break
             
             # モデルの保存
-            if self.save_model and e >= self.save_episode:
-                self.model.save(self.dirPath + '/TRIAL' + str(trials) + '/episode' + str(e) + '/robot_' + str(self.robot_n))
-                self.rbuf.save(self.dirPath + '/TRIAL' + str(trials) + '/episode' + str(e) + '/robot_' + str(self.robot_n) + '/replay_buffer')
-            else:
-                self.model.save(self.dirPath + '/TRIAL' + str(trials) + '/episode' + str(e) + '/robot_' + str(self.robot_n))
-                # self.rbuf.save(self.dirPath + '/TRIAL' + str(trials) + '/episode' + str(e) + '/robot_' + str(self.robot_n) + '/replay_buffer')
+            if self.save_rbuf:
+                self.rbuf.save(self.dirPath + '/TRIAL' + str(trials) + '/episode' + str(e) + '/robot_' + str(self.robot_n) + '/replay_buffer') # リプレイバッファの保存
+            self.model.save(self.dirPath + '/TRIAL' + str(trials) + '/episode' + str(e) + '/robot_' + str(self.robot_n)) # モデルの保存
             
             # エピソードごとの同期(他ロボットが右のエリアにいることを確認することで同期を取る)
             if self.synchro and e != self.episode:
@@ -414,7 +409,7 @@ class ReinforceAgent():
 
                     ##### shielding(リカバリー方策) #####
                     if self.recovery and t >= 2:
-                        if color_num < 100:
+                        if color_num < 50:
                             action = env.recovery_change_action(test_e, self.lidar_num, action, state, self.model.model) # LiDARの数値が低い方向への行動を避ける
                         pass
                     #####################################
@@ -544,7 +539,7 @@ class ReinforceAgent():
 
                     ##### shielding(リカバリー方策) #####
                     if self.recovery and t >= 2:
-                        if color_num < 100:
+                        if color_num < 50:
                             action = env.recovery_change_action(1, self.lidar_num, action, state, self.model.model) # LiDARの数値が低い方向への行動を避ける
                         pass
                     #####################################

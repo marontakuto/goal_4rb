@@ -663,7 +663,7 @@ class Env():
     def recovery_change_action(self, e, lidar_num, action, state, model): # LiDARの数値が低い方向への行動を避ける
 
         ### ユーザー設定パラメータ ###
-        threshold = 0.45 # 動きを変える距離(LiDAR値)[m]
+        threshold = 0.3 # 動きを変える距離(LiDAR値)[m]
         probabilistic = False # True: リカバリー方策を確率的に利用する, False: リカバリー方策を必ず利用する
         initial_probability = 1.0 # 最初の確率
         finish_episode = 50 # 方策を適応する最後のエピソード
@@ -729,13 +729,8 @@ class Env():
                 forward_scan = self.scan[0:left[0]] + self.scan[right[-1] + 1:lidar_num]
                 right_scan = self.scan[right[0]:right[-1] + 1]
                 scan_list = [left_scan, forward_scan, right_scan]
-                if len(bad_action) == 3: # 全方向のLiDAR値が低い場合はLiDAR値が最大の方向へ
-                    if max(front_scan) in left_scan:
-                        action = 0
-                    elif max(front_scan) in forward_scan:
-                        action = 1
-                    elif max(front_scan) in right_scan:
-                        action = 2
+                if len(bad_action) == 3: # 全方向のLiDAR値が低い場合はランダムな方向に旋回
+                    action = 3 # random.choice([3, 4])
                 elif len(bad_action) == 2: # 2方向のLiDAR値が低い場合は残りの方向へ
                     action = (set([0, 1, 2]) - set(bad_action)).pop()
                 elif len(bad_action) == 1: # 1方向のLiDAR値が低い場合は残りのLiDAR値が大きい方向へ
@@ -747,8 +742,8 @@ class Env():
             else: # Q値による行動の変更
                 net_out = model.forward(state.unsqueeze(0).to('cuda:0')) # ネットワークの出力
                 q_values = net_out.q_values.cpu().detach().numpy().tolist()[0] # Q値
-                if len(bad_action) == 3: # 全方向のLiDAR値が低い場合はQ値が最大の方向へ
-                    action = q_values.index(max(q_values))
+                if len(bad_action) == 3: # 全方向のLiDAR値が低い場合はランダムな方向に旋回
+                    action = 3 # random.choice([3, 4])
                 elif len(bad_action) == 2: # 2方向のLiDAR値が低い場合は残りの方向へ
                     action = (set([0, 1, 2]) - set(bad_action)).pop()
                 elif len(bad_action) == 1: # 1方向のLiDAR値が低い場合は残りのQ値が大きい方向へ
