@@ -260,7 +260,7 @@ class Visual: # Optunaの可視化
         self.html = False # HTMLとして保存するか
     
     def v1(self, trials): # 単一目的
-        if trials + 1 % self.to_trial == 0 and trials + 1 >= self.initial_trial:
+        if (trials + 1) % self.to_trial == 0 and (trials + 1) >= self.initial_trial:
             print ('save graph')
 
             dt = datetime.now()
