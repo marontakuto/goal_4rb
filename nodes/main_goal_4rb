@@ -57,7 +57,6 @@ class ReinforceAgent():
         self.replay_start_size = 500 # 初期探索 500
         self.gpu = 0 # ON:0, OFF:-1
 
-        ### 自ら作成した変数 ###
         self.mask_switch = True # 目標ゴールを緑に, 他のゴールを黒に変換
         self.display_image_normal = False # 加工していない画像の表示
         self.display_image_mask = False # マスク処理した画像の表示
@@ -66,7 +65,7 @@ class ReinforceAgent():
         self.recovery = True # リカバリー方策を適用するか否か
         self.teleport = True # 衝突時は空いたスペースに再配置するか否か
         self.all_episode_test = False # すべてのエピソードをテスト
-        ########################
+        self.robot_coordinate_recode = False # テストでのロボットの座標の記録
 
         # ### オプション有無の実験 ###
         # if trials >= 9:
@@ -314,6 +313,9 @@ class ReinforceAgent():
         color_list = []
         step_list = []
 
+        if self.robot_coordinate_recode:
+            env.coordinate_file()
+
         start_time = time.time()
 
         if test_e >= 1000: # 指定されたモデルのロード
@@ -329,7 +331,6 @@ class ReinforceAgent():
 
                 if self.mode == 'sim':
                     env.set_robot(eval_e)
-                    time.sleep(0.5)
                 else: # real
                     while True:
                         yn = input('set the robot(y/n)')
@@ -372,6 +373,9 @@ class ReinforceAgent():
                     elif t == self.test_step:
                         done = True
                     
+                    if self.robot_coordinate_recode:
+                        env.coordinate_get()
+                    
                     if done:
                         # 時間を計算
                         m, s = divmod(int(time.time() - start_time), 60)
@@ -404,6 +408,12 @@ class ReinforceAgent():
                         r_just_list.append(r_just_count)
                         color_list.append(color_count)
                         step_list.append(t_eval)
+
+                        if self.robot_coordinate_recode:
+                            flag_last = False
+                            if eval_e == self.eval_episode:
+                                flag_last = True
+                            env.coordinate_recode(flag_last)
 
                         # 他ロボットが右のエリアにいることを確認することで同期を取る
                         if self.mode == 'sim':
